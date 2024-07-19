@@ -1,10 +1,11 @@
 interface Project {
-  title: string,
-  description: string,
-  href?: string,
-  imgSrc?: string,
+  title: string
+  description: string
+  href?: string
+  imgSrc?: string
 }
 
+// TODO change its after my portfolio is ready
 const projectsData: Project[] = [
   {
     title: 'A Search Engine',
