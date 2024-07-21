@@ -1,8 +1,8 @@
-interface Project {
+export interface Project {
   title: string
   description: string
+  imgSrc: string
   href?: string
-  imgSrc?: string
 }
 
 // TODO change its after my portfolio is ready
