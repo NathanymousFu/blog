@@ -15,7 +15,7 @@ const siteMetadata = {
   // mastodon: 'https://mastodon.social/@mastodonuser',
   email: 'huhinka@163.com',
   github: 'https://github.com/huhinka',
-  x: 'https://twitter.com/hhka59148505',
+  x: 'https://x.com/huhinka7dev',
   // twitter: 'https://twitter.com/Twitter',
   // facebook: 'https://facebook.com',
   // youtube: 'https://youtube.com',
