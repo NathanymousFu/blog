@@ -36,7 +36,7 @@ export default function PostItem({ date, slug, title, tags, summary }) {
             className="text-primary-500 hover:text-primary-600 dark:hover:text-primary-400"
             aria-label={`Read more: "${title}"`}
           >
-            Read more &rarr;
+            继续阅读 &rarr;
           </Link>
         </div>
       </div>
