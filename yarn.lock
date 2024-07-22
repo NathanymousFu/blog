@@ -1632,6 +1632,11 @@
   dependencies:
     glob "10.3.10"
 
+"@next/font@^14.2.5":
+  version "14.2.5"
+  resolved "https://registry.npmmirror.com/@next/font/-/font-14.2.5.tgz"
+  integrity sha512-e2f3M+tAuJPUyXwWtEPKlPfpPEKODiQvPjdxOWBZC+zgdGv18KfjTkEmopfkfpZ016yCvw5BmMPeuEU/uiDf9g==
+
 "@next/swc-darwin-arm64@14.2.3":
   version "14.2.3"
   resolved "https://registry.npmmirror.com/@next/swc-darwin-arm64/-/swc-darwin-arm64-14.2.3.tgz"
@@ -6053,7 +6058,7 @@ next-themes@^0.3.0:
   resolved "https://registry.npmmirror.com/next-themes/-/next-themes-0.3.0.tgz"
   integrity sha512-/QHIrsYpd6Kfk7xakK4svpDI5mmXP0gfvCoJdGpZQ2TOrQZmsW0QxjaiLn8wbIKjtm4BTSqLoix4lxYYOnLJ/w==
 
-"next@^12 || ^13 || ^14", "next@>= 13", next@>=13.0.0, next@14.2.3:
+next@*, "next@^12 || ^13 || ^14", "next@>= 13", next@>=13.0.0, next@14.2.3:
   version "14.2.3"
   resolved "https://registry.npmmirror.com/next/-/next-14.2.3.tgz"
   integrity sha512-dowFkFTR8v79NPJO4QsBUtxv0g9BrS/phluVpMAt2ku7H+cbcBJlopXjkWlwxrk/xGqMemr7JkGPGemPrLLX7A==
