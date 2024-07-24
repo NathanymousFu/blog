@@ -1,4 +1,5 @@
 import HeatmapChart from './HeatmapChart'
+import TechStack from './TachStack'
 
 const TOKEN = process.env.GITHUB_TOKEN
 const query = `
@@ -59,14 +60,15 @@ export default async function Heatmap() {
   const until = weeks.at(-1)?.contributionDays.at(-1)?.date
 
   return (
-    <section className="flex flex-col ">
+    <section className="flex flex-col gap-4">
       <div className="space-y-2 pb-8 pt-6 md:space-y-5">
         <h1 className="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14">
-          <span className="block">GitHub 贡献图</span>
+          <span className="block">关于我</span>
         </h1>
         <p className="text-lg leading-7 text-gray-500 dark:text-gray-400">敲敲敲...</p>
       </div>
       <HeatmapChart counts={counts} until={until} />
+      <TechStack />
     </section>
   )
 }
