@@ -2,18 +2,23 @@
 
 import { clsx } from 'clsx'
 import { useTheme } from 'next-themes'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function Welcome() {
-  const { theme } = useTheme()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const refContainer = useRef<HTMLDivElement>(null)
+
+  const welcomeLineClass = clsx('welcome-line', theme === 'dark' && 'welcome-line-dark')
+
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     // @ts-ignore
     refContainer.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  const welcomeLineClass = clsx('welcome-line', theme === 'dark' && 'welcome-line-dark')
+  if (!mounted) return null
 
   return (
     <section className="welcome-container" ref={refContainer}>
