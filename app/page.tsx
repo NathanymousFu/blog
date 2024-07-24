@@ -1,17 +1,19 @@
-import { sortPosts, allCoreContent } from 'pliny/utils/contentlayer'
 import { allBlogs } from 'contentlayer/generated'
-import Welcome from './Welcome'
-import LatestBlogs from './LatestBlogs'
+import { allCoreContent, sortPosts } from 'pliny/utils/contentlayer'
 import FeaturedProjects from './FeaturedProjects'
+import Heatmap from './Heatmap'
+import LatestBlogs from './LatestBlogs'
+import Welcome from './Welcome'
 
 export default async function Page() {
   const sortedPosts = sortPosts(allBlogs)
   const posts = allCoreContent(sortedPosts)
   return (
-    <>
+    <div className="flex flex-col gap-8">
       <Welcome />
+      <Heatmap />
       <FeaturedProjects />
       <LatestBlogs posts={posts} />
-    </>
+    </div>
   )
 }
