@@ -1,48 +1,156 @@
 ---
 title: '文本与字节序列'
 date: '2022-03-05'
-lastmod: '2024-07-22'
+lastmod: '2024-07-25'
 tags: ['Encoding', 'Unicode', 'utf-8']
 draft: false
 summary: '人类使用文本，计算机使用字节序列。'
-images: ['/static/images/canada/mountains.jpg', '/static/images/canada/toronto.jpg']
 ---
 
 > 人类使用文本，计算机使用字节序列。
-> &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; ———— Esther Nam 和 Travis Fischer “Character Encoding and Unicode in Python”
+>
+> &emsp;&emsp;&emsp;&emsp;&emsp; ———— Esther Nam 和 Travis Fischer “Character Encoding and Unicode in Python
+
+我最初的工作是 Python Web 开发，当时 Python 的版本还是 2，时常遇到文本的编解码问题。比如：
+
+```
+UnicodeDecodeError: ‘ascii’ codec can’t decode byte 0xd1 in position 1: ordinal not in range(128)
+```
+
+后来切换到 Python3 后似乎就不再遇到过了。同样，Java、C、JavaScript 等也不需要像 Python2 那样与编解码问题斗智斗勇。
+
+那么，为什么 Python2 会需要时常处理编解码问题？其他为什么语言没有类似的问题？编解码问题的本质又是什么？
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+## 问题再现
+
+我们在 **UTF-8 编码**的终端种打开 python 2 的交互式环境，简单复现一个异常作为演示：
+
+```Python2
+>>> u'foo' + '中文'
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe4 in position 0: ordinal not in range(128)
+```
+
+这里尝试将一个 Unicode 字符串和一个字符串字面量相加，结果抛出了 `UnicodeDecodeError` 异常：
+'ascii' 编解码器无法解码位置 0 上的字节 `0xe4`，因为它的值不在 0~128 的范围内。
+
+我们直接分析这个异常的说明，异常名 `Unciode解码异常` 解释了那行代码在解码 Unicode，
+而且使用的是 ascii 编解码器。很容易看出这个编解码器抛出异常是因为碰到了 `'中文'` 这个字面量。
+
+这个例子中字符串字面量的编码在 Python2 中取决于终端的编码，即上文提到的 UTF-8 编码。
+如果这行代码写在了 GBK 编码的文件里，那它就是 GBK 编码。因为 Python2 字符串字面量只是单纯的字节序列。
+
+然后我们可以得出问题在于，ascii 编解码器解码 `中文` 这个 UTF-8 编码的字节序列时出了问题。
+同时可以得知一个细节，ascii 编解码器只能解码 0~128 范围的字节。
+
+讲了那么多，”编码“、”解码“、”编码器“、”解码器“、”字节序列“、”Unicode“、”utf-8“、”ascii“，这些概念真是又多又乱。
+下面我们尝试解释清楚。
+
+## 概念梳理
+
+### 文本与字节序列
 
 英文字母、中文汉字，或是其他国家的语言文字，我们可以在计算机上看到这些可读文本，但计算机并不直接使用它们。
 
-在计算机中，字节序列（二进制数据）可以以某种映射关系转化为规定好的文本字符串（不考虑这些数据是不是文本数据）。这种映射关系就是编码（字符编码，名词），这个转化过程就叫做解码，相反，把文本字符串转化为字节序列的过程叫做编码（动词）。
+在计算机中，字节序列（二进制数据）可以以某种映射关系转化为规定好的文本字符串（不考虑这些数据是不是文本数据）。
+这种映射关系就是编码（字符编码，名词），这个转化过程就叫做解码，相反，把文本字符串转化为字节序列的过程叫做编码（动词）。
 
-假设有一个文件，其中存储了 utf-8 编码的一段文字，当使用某个软件打开它时需要指定一个编码，如果这个编码与这本文件的编码不一致，看到的很可能就是一串乱码。这是因为解读这段文字的字节序列使用的编码与写这段文字的编码不同。
+假设有一个文件，其中存储了 utf-8 编码的一段文字，当使用某个软件打开它时需要指定一个编码，如果这个编码与这本文件的编码不一致，看到的很可能就是一串乱码。
+这是因为解读这段文字的字节序列使用的编码与写这段文字的编码不同。
 
-所以编码其实就像是一个双向映射表，一个协议，约定了人类需要使用的文本字符在计算机中使用哪些字节序列表示。比如字符拉丁大写字母 “A” 可以对应码位十六进制数字 65，ASCII 中使用一个字节的字节序列 `0100 0001` 表示。
+所以编码其实就像是一个双向映射表，一个协议，约定了人类需要使用的文本字符在计算机中使用哪些字节序列表示。
+比如字符拉丁大写字母 “A” 可以对应码位十六进制数字 65，ASCII 中使用一个字节的字节序列 `0100 0001` 表示。
 
-## ASCII 和其他编码
+![编码与解码](/static/images/text-and-bytes/encoding-and-decoding.png)
 
-最早的编码是 ASCII 编码（/ˈæski/，American Standard Code for Information Interchange），一共 128 个字符包括大小写英文字母、数字和一些符号。由于编码字符足够少，一个字符只需要一个字节表示（一个字节的范围是 0~255 ，最多可以表示 256 个字符）。
+### ASCII 和其他编码
 
-显然其他语言使用者要在计算机上显示自己的语言文字就需要一套自己的编码。于是有了汉语的 GB2312 、GBK 和 GB18030 ，日文的 Shift_JIS 等。而且根据语言中要表示的文字的数量的多少所需要的字节数也不同（另外还有一种可变长编码）。
+最早的编码是 ASCII 编码（/ˈæski/，American Standard Code for Information Interchange），一共 128 个字符包括大小写英文字母、数字和一些符号。
+由于编码字符足够少，一个字符只需要一个字节表示（一个字节的范围是 0~255 ，最多可以表示 256 个字符）。
+
+显然其他语言使用者要在计算机上显示自己的语言文字就需要一套自己的编码。于是有了汉语的 GB2312 、GBK 和 GB18030 ，日文的 Shift_JIS 等。
+而且根据语言中要表示的文字的数量的多少所需要的字节数也不同（另外还有一种可变长编码）。
 
 当各个国家的人要相互交流的时候都是用各自的编码就会特别麻烦，一不小心就会出现乱码，于是就需要一个统一的编码。
 
-## Unicode 和 utf-8
+### Unicode 和 utf-8
 
 Unicode 标准包含了世界上大部分语言，这样所有人统一使用它就不用总是区分编码，也不会有乱码问题了。
 
-值得一提的是 Unicode 实际是一个标准，不是一个具体的编码。它给世上大部分语言的文字字符分配了一个唯一数字（码位，code point）。而这个数字如何用字节序列表示就是编码的问题。
+值得一提的是 Unicode 实际是一个标准，不是一个具体的编码。它给世上大部分语言的文字字符分配了一个唯一数字（码位，code point）。
+而这个数字如何用字节序列表示就是编码的问题。
 
 也就是说标准定义了从一组字符到一组数字，编码定义了一组字符到一组字节序列。
 
-最常用的 utf-8 就是遵循 Unicode 标准的编码。utf-8 用一个字节表示 Unicode 定义的前 128 个码位，这 128个 码位与 ASCII 相同，意味着一个 ASCII 编码的文本与 Unicode 编码的文本在字节序列上相同。用两个字节表示阿拉伯语、希伯来语和大部分欧洲语言。用三个字节表示 Unicode 定义的 BMP(Basic Multilingual Plane)（中文、日文、韩文等）。用四个字节表示所有的 Unicode 字符。
+最常用的 utf-8 就是遵循 Unicode 标准的编码。
+utf-8 用一个字节表示 Unicode 定义的前 128 个码位，这 128个 码位与 ASCII 相同，意味着一个 ASCII 编码的文本与 Unicode 编码的文本在字节序列上相同。
+用两个字节表示阿拉伯语、希伯来语和大部分欧洲语言。用三个字节表示 Unicode 定义的 BMP(Basic Multilingual Plane)（中文、日文、韩文等）。
+用四个字节表示所有的 Unicode 字符。
 
 另外 utf-16 、甚至 utf-32 也是它的实现。（8 、16 和 32 是指最少使用多少位表示码位）utf-16 用两个字节表示 BMP。4 个字节表示所有字符。
 
 ## Python 中的 Unicode
 
-Unicode 在 Python 中是区别于具体编码的单独的类型。因为 Unicode 是一个标准（一个字符对应一个码位），Python 中一个 Unicode 字符代表一个数字。比如中文中国表示为 `u'\u4e2d\u56fd'` ，其中 `4e2d` 就是中这个字符在 Unicode 中十六进制形式的码位。
+Unicode 在 Python 中是区别于具体编码的单独的类型。因为 Unicode 是一个标准（一个字符对应一个码位），Python 中一个 Unicode 字符代表一个数字。
+比如中文中国表示为 `u'\u4e2d\u56fd'` ，其中 `4e2d` 就是中这个字符在 Unicode 中十六进制形式的码位。
 
 如果是 utf-8 编码在 Python 中就表示为 `\xe4\xb8\xad\xe5\x9b\xbd` ，一共 6 个字节，一个汉字三个字节。
 
 utf-16编码中表示为 `\xff\xfe-N\xfdV` ，其中\xff\xfe表示字节序标记（BOM，Byte Order Mark），代表小字节序。其后共四个字节。
+
+## Python2 如何编解码文本
+
+通过上述介绍，我们大致理解了 `UnicodeDecodeError` 错误。
+
+那么我们可以回答开头提出的问题，Python2 为什么那么容易出现这个错误。
+原因很简单，**Python2 将代码中的字符串字面量视为字节序列**，Python2 不知道它是什么编码。
+问题就出在这个“不知道”，不知道就只能猜，它默认用 ascii 去解码，遇到超出其表示范围的字节就会抛异常了。
+
+不只是字面量，Python2 从文件读出来的也是字节序列，所以需要指定编码才能解码成可读的字符串。
+
+```Python2
+>>> open('foo.txt', 'r').read()
+'\xe4\xbd\xa0\xe5\xa5\xbd'
+>>> open('foo.txt', 'r').read().decode('utf-8')
+u'\u4f60\u597d'
+```
+
+## Python3 的改进
+
+Python3 对此做出了改进，将字符串字面量视为 Unicode 字符串，
+解释器不需要去猜它是什么编码，默认编码也设置为更通用的 UTF-8，所以不容易出现 `UnicodeDecodeError` 异常了。
+
+## 其他语言如何处理文本
+
+对比几种主流的编程语言可以发现，便底层开发的编程语言如 C、C++、Rust 等，字符串处理都是基于字节的，所以编码问题需要程序员自己处理。
+C 对字节序列的编码默认假设为 ASCII，C++ 的 `std::string` 和 Rust 的 `Vec<u8>` 都是默认为 UTF-8。
+
+而偏向于应用开发编程语言如 Java、JavaScript、Python3 等，字符串处理都是基于 Unicode 的，所以编码问题不需要程序员自己处理。
+
+Python2 最早的解释器使用 C 写的，它使用字节序列表示字符串的方式应该是从 C 继承来的。
+
+## 最佳实践
+
+使用 C、C++、Rust、Python2 等语言开发时，需要明确知道字符串的编码，并使用正确的编码去解码。
+
+使用 Python3、Java、JavaScript 等开发时，只需要注意从程序外部读到内存的字符串编码是什么，
+然后使用正确的编码去解码，保证程序业务流程始终使用的是 Unicode 即可。当然一般应用开发不会遇到这类问题。
+
+![read-and-write](/static/images/text-and-bytes/read-write-bytes.png)
+
+## 总结
+
+本文通过一个 `UnicodeDecodeError` 异常，解释了编码、解码、编码器、解码器、字节序列、Unicode、utf-8、ascii 等概念。
+
+## 参考
+
+- [Python 2 Unicode HOWTO](https://docs.python.org/2.7/howto/unicode.html)
+- [Python 3 Unicode HOWTO](https://docs.python.org/3/howto/unicode.html)
+- [Python 2.7.18 documentation](https://docs.python.org/2/library/codecs.html#standard-encodings)
+- [Python 3.9.7 documentation](https://docs.python.org/3/library/codecs.html#standard-encodings)
+- [Unicode](https://en.wikipedia.org/wiki/Unicode)
+- [UTF-8](https://en.wikipedia.org/wiki/UTF-8)
+- [ASCII](https://en.wikipedia.org/wiki/ASCII)
