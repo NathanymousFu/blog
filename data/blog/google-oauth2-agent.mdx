@@ -1,0 +1,241 @@
+---
+title: 'Nest.js + Passport 项目集成 Google OAuth2 因无法访问 googleapi 导致无法完成登陆问题'
+date: '2025-04-19'
+lastmod: '2025-04-19'
+tags: ['Nest.js', 'Google OAuth2']
+draft: false
+summary: '本地调试 Google OAuth2 遇到的网络问题与解决方案'
+---
+
+## 背景
+
+项目使用 Nest.js、passport、passport-google-oauth20 实现了 Google OAuth2 登录功能，
+但本地调试时，无法正常访问 Google API，导致无法完成登录。
+
+## 问题
+
+具体问题发生在用户完成认证后，浏览器重定向到我方服务器的回调地址，此时我方服务器会调用 Google 授权服务器获取 Access Token。
+但是由于 passport-google-oauth20 发送请求时默认不走代理，产生如下超时错误：
+
+```
+[Nest] 91029  - 04/19/2025, 9:30:07 AM   ERROR [ExceptionsHandler] InternalOAuthError: Failed to obtain access token
+    at OAuth2Strategy._createOAuthError (/Users/huhinka/Developer/Project/proj-robot/node_modules/.pnpm/passport-oauth2@1.8.0/node_modules/passport-oauth2/lib/strategy.js:423:17)
+    at /Users/huhinka/Developer/Project/proj-robot/node_modules/.pnpm/passport-oauth2@1.8.0/node_modules/passport-oauth2/lib/strategy.js:177:45
+    at /Users/huhinka/Developer/Project/proj-robot/node_modules/.pnpm/oauth@0.10.2/node_modules/oauth/lib/oauth2.js:196:18
+    at ClientRequest.<anonymous> (/Users/huhinka/Developer/Project/proj-robot/node_modules/.pnpm/oauth@0.10.2/node_modules/oauth/lib/oauth2.js:166:7)
+    at ClientRequest.emit (node:events:518:28)
+    at TLSSocket.socketErrorListener (node:_http_client:500:9)
+    at TLSSocket.emit (node:events:518:28)
+    at emitErrorNT (node:internal/streams/destroy:169:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:128:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  oauthError: AggregateError [ETIMEDOUT]:
+      at internalConnectMultiple (node:net:1116:18)
+      at afterConnectMultiple (node:net:1683:7)
+      at TCPConnectWrap.callbackTrampoline (node:internal/async_hooks:130:17) {
+    code: 'ETIMEDOUT',
+    [errors]: [
+      Error: connect ETIMEDOUT 142.250.204.42:443
+          at createConnectionError (node:net:1646:14)
+          at Timeout.internalConnectMultipleTimeout (node:net:1705:38)
+          at listOnTimeout (node:internal/timers:575:11)
+          at process.processTimers (node:internal/timers:514:7) {
+        errno: -60,
+        code: 'ETIMEDOUT',
+        syscall: 'connect',
+        address: '142.250.204.42',
+        port: 443
+      },
+      Error: connect ETIMEDOUT 142.250.196.202:443
+          at createConnectionError (node:net:1646:14)
+          at Timeout.internalConnectMultipleTimeout (node:net:1705:38)
+          at listOnTimeout (node:internal/timers:575:11)
+          at process.processTimers (node:internal/timers:514:7) {
+        errno: -60,
+        code: 'ETIMEDOUT',
+        syscall: 'connect',
+        address: '142.250.196.202',
+        port: 443
+      },
+      Error: connect ETIMEDOUT 142.250.66.74:443
+          at createConnectionError (node:net:1646:14)
+          at Timeout.internalConnectMultipleTimeout (node:net:1705:38)
+          at listOnTimeout (node:internal/timers:575:11)
+          at process.processTimers (node:internal/timers:514:7) {
+        errno: -60,
+        code: 'ETIMEDOUT',
+        syscall: 'connect',
+        address: '142.250.66.74',
+        port: 443
+      },
+      Error: connect ETIMEDOUT 142.250.198.74:443
+          at createConnectionError (node:net:1646:14)
+          at afterConnectMultiple (node:net:1676:16)
+          at TCPConnectWrap.callbackTrampoline (node:internal/async_hooks:130:17) {
+        errno: -60,
+        code: 'ETIMEDOUT',
+        syscall: 'connect',
+        address: '142.250.198.74',
+        port: 443
+      }
+    ]
+  }
+}
+```
+
+可以看到应该是解析了某域名，访问了多个 IP，但都超时了。
+
+## 尝试
+
+一开始以为只要在 shell 中设置代理一样，只要设置下 http_proxy 和 https_proxy 就可以了：
+
+```bash
+export http_proxy=http://127.0.0.1:7890
+export https_proxy=http://127.0.0.1:7890
+```
+
+在 vscode 中的 launch.json 这样配置：
+
+```json
+{
+  "configurations": [
+    {
+      // ...其他配置
+      "env": {
+        "http_proxy": "socks5://127.0.0.1:7890",
+        "https_proxy": "socks5://127.0.0.1:7890"
+      }
+    }
+  ]
+}
+```
+
+但挖了一下 passport-google-oauth20 的源码，其实它根本不读环境变量。
+
+passport-google-oauth20 的 `Strategy` 继承了 `passport-oauth2` 的 `OAuth2Strategy`。
+
+```js
+function Strategy(options, verify) {
+  options = options || {}
+  options.authorizationURL =
+    options.authorizationURL || 'https://accounts.google.com/o/oauth2/v2/auth'
+  options.tokenURL = options.tokenURL || 'https://www.googleapis.com/oauth2/v4/token'
+
+  OAuth2Strategy.call(this, options, verify)
+  this.name = 'google'
+  this._userProfileURL = options.userProfileURL || 'https://www.googleapis.com/oauth2/v3/userinfo'
+
+  var url = uri.parse(this._userProfileURL)
+  if (url.pathname.indexOf('/userinfo') == url.pathname.length - '/userinfo'.length) {
+    this._userProfileFormat = 'openid'
+  } else {
+    this._userProfileFormat = 'google+' // Google Sign-In
+  }
+}
+```
+
+PS: 可以看到获取 token 的地址是 `https://www.googleapis.com/oauth2/v4/token`。
+
+而 `OAuth2Strategy` 使用 `oauth` 这个库处理 OAuth 流程中的请求。
+
+```js
+function OAuth2Strategy(options, verify) {
+  // ...其他校验与初始化
+
+  // NOTE: The _oauth2 property is considered "protected".  Subclasses are
+  //       allowed to use it when making protected resource requests to retrieve
+  //       the user profile.
+  this._oauth2 = new OAuth2(
+    options.clientID,
+    options.clientSecret,
+    '',
+    options.authorizationURL,
+    options.tokenURL,
+    options.customHeaders
+  )
+
+  // ...
+}
+```
+
+再看 `oauth` 的 `OAuth2` 对象的代码，发现其实它可以设置代理。
+
+```js
+exports.OAuth2 = function (
+  clientId,
+  clientSecret,
+  baseSite,
+  authorizePath,
+  accessTokenPath,
+  customHeaders
+) {
+  // ...其他字段初始化
+
+  //our agent
+  this._agent = undefined
+}
+
+// Allows you to set an agent to use instead of the default HTTP or
+// HTTPS agents. Useful when dealing with your own certificates.
+exports.OAuth2.prototype.setAgent = function (agent) {
+  this._agent = agent
+}
+```
+
+那问题就很简单了，给 OAuth2 对象设置代理就好了。
+
+从后面请求的流程可以看出，它发送请求用的是 `http` 或 `https` 模块。
+
+```js
+exports.OAuth2.prototype._chooseHttpLibrary = function (parsedUrl) {
+  var http_library = https
+  // As this is OAUth2, we *assume* https unless told explicitly otherwise.
+  if (parsedUrl.protocol != 'https:') {
+    http_library = http
+  }
+  return http_library
+}
+```
+
+为 `https` 设置代理可以使用 `socks-proxy-agent` 库。
+
+## 解决
+
+使用 `socks-proxy-agent` 为 OAuth2 对象设置代理：
+
+```typescript
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { PassportStrategy } from '@nestjs/passport'
+import { Strategy, VerifyCallback } from 'passport-google-oauth20'
+import { SocksProxyAgent } from 'socks-proxy-agent'
+
+@Injectable()
+export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly logger = new Logger(GoogleStrategy.name)
+
+  constructor(private configService: ConfigService) {
+    super({
+      clientID: configService.get('GOOGLE_CLIENT_ID') || '',
+      clientSecret: configService.get('GOOGLE_CLIENT_SECRET') || '',
+      callbackURL: configService.get('GOOGLE_CALLBACK_URL') || '',
+      scope: ['email', 'profile'],
+    })
+
+    // 设置代理，否则国内无法访问 Google API
+    this._oauth2.setAgent(new SocksProxyAgent('socks5://127.0.0.1:7890'))
+  }
+
+  // ...validate 方法
+}
+```
+
+当然需要用到 Google OAuth2 那生产环境肯定不需要使用代理。
+
+## 总结
+
+一开始错误地认为设置了环境变量程序就能走代理，其实这要看程序具体的实现。比如 ping 不读环境变量，curl 就读环境变量。
+所以排查时花费不少时间，走进了死胡同。
+通过查看源码才明白应该为 `https` 模块设置代理，而这个模块需要手动设置才能使用代理。
+
+这篇 blog 总结了 Nest.js 项目本地调试 Google OAuth2 时遇到的网络问题以及解决方法，希望对遇到同样问题的人有所帮助。
