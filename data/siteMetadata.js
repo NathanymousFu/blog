@@ -1,21 +1,21 @@
 /** @type {import("pliny/config").PlinyConfig } */
 const siteMetadata = {
-  title: "HuHinka' Blog",
-  author: 'huhinka',
-  headerTitle: "HuHinka's Blog",
+  title: "Nathanymous' Blog",
+  author: 'Nathanymous',
+  headerTitle: "Nathanymous's Blog",
   // TODO change it
   description: 'A blog created with Next.js and Tailwind.css',
   language: 'zh-Hans',
   theme: 'system', // system, dark or light
   siteUrl: 'https://tailwind-nextjs-starter-blog.vercel.app',
-  siteRepo: 'https://github.com/huhinka/blog',
+  siteRepo: 'https://github.com/NathanymousFu/blog',
   siteLogo: '/static/images/logo.png',
   // TODO change this to your social links
   socialBanner: '/static/images/twitter-card.png',
   // mastodon: 'https://mastodon.social/@mastodonuser',
-  email: 'huhinka@163.com',
-  github: 'https://github.com/huhinka',
-  x: 'https://x.com/hhka59148505',
+  email: 'nathanymous@gmail.com',
+  github: 'https://github.com/NathanymousFu',
+  x: 'https://x.com/NathanymousFu',
   // facebook: 'https://facebook.com',
   // youtube: 'https://youtube.com',
   // linkedin: 'https://www.linkedin.com',

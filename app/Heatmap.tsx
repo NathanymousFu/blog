@@ -37,6 +37,10 @@ async function retrieveContributionData(userName: string) {
     },
     body: JSON.stringify(body),
   })
+  if (res.status !== 200) {
+    throw new Error(`Failed to fetch contribution data: ${res.status}`)
+  }
+
   return res.json()
 }
 
@@ -49,7 +53,7 @@ export default async function Heatmap() {
         },
       },
     },
-  } = await retrieveContributionData('huhinka')
+  } = await retrieveContributionData('NathanymousFu')
 
   const counts = weeks
     .map((week) => week.contributionDays.filter((day) => day.contributionCount > 0))
