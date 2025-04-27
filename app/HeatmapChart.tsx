@@ -9,9 +9,9 @@ export default function HeatmapChart({ counts, until }) {
   }
   const monthLabelAttributes = {
     style: {
-      'text-decoration': 'underline',
-      'font-size': 10,
-      'alignment-baseline': 'central',
+      textDecoration: 'underline',
+      fontSize: 10,
+      alignmentBaseline: 'central',
       fill: '#AAA',
     },
   }
